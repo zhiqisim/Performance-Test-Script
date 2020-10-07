@@ -99,7 +99,9 @@ public class App
                 }
                 // 95 percentile 
                 Map<String, List<Integer>> rows95Pencentile = new HashMap<String, List<Integer>>();
+                int count = 0;
                 for (Run r : history.getRuns()) {
+                    count += 1;
                     for (Scn scn : r.getScn()) {
                         if (rows95Pencentile.containsKey(scn.getName())){
                             rows95Pencentile.get(scn.getName()).add(scn.getPercentile95());
@@ -108,10 +110,17 @@ public class App
                             rows95Pencentile.get(scn.getName()).add(scn.getPercentile95());
                         }
                     }
+                    for (Map.Entry<String, List<Integer>> row : rows95Pencentile.entrySet()) {
+                        if (count > row.getValue().size()){
+                            row.getValue().add(0);
+                        }
+                    }
                 }
                 // mean
                 Map<String, List<Integer>> rowsMean = new HashMap<String, List<Integer>>();
+                count = 0;
                 for (Run r : history.getRuns()) {
+                    count += 1;
                     for (Scn scn : r.getScn()) {
                         if (rowsMean.containsKey(scn.getName())){
                             rowsMean.get(scn.getName()).add(scn.getMean());
@@ -120,10 +129,17 @@ public class App
                             rowsMean.get(scn.getName()).add(scn.getMean());
                         }
                     }
+                    for (Map.Entry<String, List<Integer>> row : rowsMean.entrySet()) {
+                        if (count > row.getValue().size()){
+                            row.getValue().add(0);
+                        }
+                    }
                 }
                 // max
                 Map<String, List<Integer>> rowsMax = new HashMap<String, List<Integer>>();
+                count = 0;
                 for (Run r : history.getRuns()) {
+                    count += 1;
                     for (Scn scn : r.getScn()) {
                         if (rowsMax.containsKey(scn.getName())){
                             rowsMax.get(scn.getName()).add(scn.getMaximum());
@@ -132,16 +148,28 @@ public class App
                             rowsMax.get(scn.getName()).add(scn.getMaximum());
                         }
                     }
+                    for (Map.Entry<String, List<Integer>> row : rowsMax.entrySet()) {
+                        if (count > row.getValue().size()){
+                            row.getValue().add(0);
+                        }
+                    }
                 }
                 // min 
                 Map<String, List<Integer>> rowsMin = new HashMap<String, List<Integer>>();
+                count = 0;
                 for (Run r : history.getRuns()) {
+                    count += 1;
                     for (Scn scn : r.getScn()) {
                         if (rowsMin.containsKey(scn.getName())){
                             rowsMin.get(scn.getName()).add(scn.getMinimum());
                         } else {
                             rowsMin.put(scn.getName(), new ArrayList<Integer>());
                             rowsMin.get(scn.getName()).add(scn.getMinimum());
+                        }
+                    }
+                    for (Map.Entry<String, List<Integer>> row : rowsMin.entrySet()) {
+                        if (count > row.getValue().size()){
+                            row.getValue().add(0);
                         }
                     }
                 }
@@ -203,7 +231,17 @@ public class App
             for (int i=0; i<rowValues.size()-1; i++) {
                 // delta value benchedmark on preivous run
                 int diff = rowValues.get(i) - rowValues.get(i+1);
-                if (diff < 0) {
+                if (rowValues.get(i) == 0) {
+                    String noRun = "NO RUNS";
+                    String stringToAdd = "<td>" + noRun + "</td><td style=\"background-color:#FF0000\"> KO </td>" ;
+                    fileString += stringToAdd;
+                }
+                else if (rowValues.get(i+1) == 0) {
+                    String noRun = " - ";
+                    String stringToAdd = "<td>" + rowValues.get(i) + "</td><td style=\"background-color:#D3D3D3\">" + noRun + "</td>" ;
+                    fileString += stringToAdd;
+                }
+                else if (diff < 0) {
                     String stringToAdd = "<td>" + rowValues.get(i) + "</td><td style=\"background-color:#00FF00\">" + diff + "</td>" ;
                     fileString += stringToAdd;
                 } else if (diff > 0) {
@@ -216,8 +254,15 @@ public class App
                 
             }
             // add last run one with delta == 0
-            String stringToAdd = "<td>" + rowValues.get(rowValues.size()-1) + "</td><td>FIRST RUN</td>" ;
-            fileString += stringToAdd;
+            if (rowValues.get(rowValues.size()-1) == 0) {
+                String noRun = "NO RUNS";
+                String stringToAdd = "<td>" + noRun + "</td><td>FIRST RUN</td>" ;
+                fileString += stringToAdd;
+            }
+            else {
+                String stringToAdd = "<td>" + rowValues.get(rowValues.size()-1) + "</td><td>FIRST RUN</td>" ;
+                fileString += stringToAdd;
+            }
             fileString += "</tr>\n";
         }
         fileString += "</table>\n";

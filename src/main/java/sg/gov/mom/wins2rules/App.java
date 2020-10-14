@@ -90,7 +90,7 @@ public class App
                 e.printStackTrace();
             }
             
-            try (Reader reader2 = new FileReader("template.txt")) {
+            try (Reader reader2 = new FileReader("template.html")) {
                 int data = reader2.read();
                 String fileString = "";
                 while (data != -1) {  
@@ -107,6 +107,11 @@ public class App
                             rows95Pencentile.get(scn.getName()).add(scn.getPercentile95());
                         } else {
                             rows95Pencentile.put(scn.getName(), new ArrayList<Integer>());
+                            int subCount = count;
+                            while (subCount > 1) {
+                                rows95Pencentile.get(scn.getName()).add(0);
+                                subCount -= 1;
+                            }
                             rows95Pencentile.get(scn.getName()).add(scn.getPercentile95());
                         }
                     }
@@ -119,13 +124,18 @@ public class App
                 // mean
                 Map<String, List<Integer>> rowsMean = new HashMap<String, List<Integer>>();
                 count = 0;
-                for (Run r : history.getRuns()) {
+                for (Run r : history.getRuns()) {     
                     count += 1;
                     for (Scn scn : r.getScn()) {
                         if (rowsMean.containsKey(scn.getName())){
                             rowsMean.get(scn.getName()).add(scn.getMean());
                         } else {
                             rowsMean.put(scn.getName(), new ArrayList<Integer>());
+                            int subCount = count;
+                            while (subCount > 1) {
+                                rowsMean.get(scn.getName()).add(0);
+                                subCount -= 1;
+                            }
                             rowsMean.get(scn.getName()).add(scn.getMean());
                         }
                     }
@@ -134,6 +144,7 @@ public class App
                             row.getValue().add(0);
                         }
                     }
+                    
                 }
                 // max
                 Map<String, List<Integer>> rowsMax = new HashMap<String, List<Integer>>();
@@ -145,6 +156,11 @@ public class App
                             rowsMax.get(scn.getName()).add(scn.getMaximum());
                         } else {
                             rowsMax.put(scn.getName(), new ArrayList<Integer>());
+                            int subCount = count;
+                            while (subCount > 1) {
+                                rowsMax.get(scn.getName()).add(0);
+                                subCount -= 1;
+                            }
                             rowsMax.get(scn.getName()).add(scn.getMaximum());
                         }
                     }
@@ -164,6 +180,11 @@ public class App
                             rowsMin.get(scn.getName()).add(scn.getMinimum());
                         } else {
                             rowsMin.put(scn.getName(), new ArrayList<Integer>());
+                            int subCount = count;
+                            while (subCount > 1) {
+                                rowsMin.get(scn.getName()).add(0);
+                                subCount -= 1;
+                            }
                             rowsMin.get(scn.getName()).add(scn.getMinimum());
                         }
                     }
@@ -177,6 +198,19 @@ public class App
                 fileString += appendToHTMLFile(rowsMean, history, "Mean");
                 fileString += appendToHTMLFile(rowsMax, history, "Max");
                 fileString += appendToHTMLFile(rowsMin, history, "Min");
+                fileString += "<script>var acc = document.getElementsByClassName(\"accordion\");var i;" +
+                "for (i = 0; i < acc.length; i++) {" +
+                  "acc[i].addEventListener(\"click\", function() {" +
+                    "this.classList.toggle(\"active\");" +
+                    "var panel = this.nextElementSibling;" +
+                    "if (panel.style.maxHeight) {" +
+                      "panel.style.maxHeight = null;" +
+                    "} else {" +
+                      "panel.style.maxHeight = panel.scrollHeight + \"px\";" +
+                    "}" +
+                  "});" +
+                "}" +
+                "</script>";
                 fileString += "</body></html>\n";
 
                 // write file to a resulting HTML file
@@ -198,7 +232,8 @@ public class App
 
     public static String appendToHTMLFile(Map<String, List<Integer>> rows, History history, String metricName) {
         String fileString = "";
-        fileString += "<h2>"+ metricName + " Response Times</h2>\n";
+        fileString += "<button class=\"accordion\"><h2>" + metricName + " Response Times</h2></button><div class=\"panel\">\n";
+        // fileString += "<h2>"+ metricName + " Response Times</h2>\n";
         fileString += "<table>\n";
         // add the scn name as headers
         fileString += "<tr>\n";
@@ -221,6 +256,9 @@ public class App
             fileString += stringToAdd;
         }
         fileString += "</tr>\n";
+        int totalCount = 0;
+        int totalAbove50 = 0;
+        int totalIncrease = 0;
         // iterate through each scn to parse into table row
         for (Map.Entry<String, List<Integer>> row : rows.entrySet()) {
             String rowName = row.getKey();
@@ -228,9 +266,26 @@ public class App
             fileString += "<tr>\n";
             String scnName = "<th>"+ rowName +"</th>\n";
             fileString += scnName;
+            // calculate for latest run difference to break pipeline
+            if (rowValues.get(0) != 0) {
+                totalCount += 1;
+                int diff = rowValues.get(0) - rowValues.get(1);
+                if (diff > 0) {
+                    double percentRate = 100 * ((rowValues.get(0) - rowValues.get(1)) / (double)rowValues.get(1));
+                    if (percentRate > 0) {
+                        totalIncrease += 1;
+                    }
+                    if (percentRate >= 50.0) {
+                        totalAbove50 += 1;
+                    }
+                }
+            }
+            
             for (int i=0; i<rowValues.size()-1; i++) {
                 // delta value benchedmark on preivous run
                 int diff = rowValues.get(i) - rowValues.get(i+1);
+                double percentRate = 100 * ((rowValues.get(i) - rowValues.get(i+1)) / (double)rowValues.get(i+1));
+                percentRate = (double)Math.round(percentRate * 10d) / 10d;
                 if (rowValues.get(i) == 0) {
                     String noRun = "NO RUNS";
                     String stringToAdd = "<td>" + noRun + "</td><td style=\"background-color:#FF0000\"> KO </td>" ;
@@ -242,10 +297,10 @@ public class App
                     fileString += stringToAdd;
                 }
                 else if (diff < 0) {
-                    String stringToAdd = "<td>" + rowValues.get(i) + "</td><td style=\"background-color:#00FF00\">" + diff + "</td>" ;
+                    String stringToAdd = "<td>" + rowValues.get(i) + "</td><td style=\"background-color:#00FF00\"> &#8593; " + diff*-1 + " (" + percentRate + "%) </td>" ;
                     fileString += stringToAdd;
                 } else if (diff > 0) {
-                    String stringToAdd = "<td>" + rowValues.get(i) + "</td><td style=\"background-color:#FF0000\">" + diff + "</td>" ;
+                    String stringToAdd = "<td>" + rowValues.get(i) + "</td><td style=\"background-color:#FF0000\"> &#8595; " + diff + " (" + percentRate + "%) </td>" ;
                     fileString += stringToAdd;
                 } else {
                     String stringToAdd = "<td>" + rowValues.get(i) + "</td><td style=\"background-color:#D3D3D3\">" + diff + "</td>" ;
@@ -265,7 +320,24 @@ public class App
             }
             fileString += "</tr>\n";
         }
-        fileString += "</table>\n";
+        try {
+            String filename= "result.log";
+            FileWriter fw = new FileWriter(filename,true); //the true will append the new data
+            if (totalCount == totalIncrease) {
+                String appendStr = metricName + " - Every scenario performance decreased. KO \n";
+                fw.write(appendStr);//appends the string to the file
+            }
+            if (totalAbove50 > 0) {
+                String appendStr = metricName + " - One or more scenario performance decreased by more than 50%. KO \n";
+                fw.write(appendStr);//appends the string to the file
+            }
+            
+            fw.close();
+        }
+        catch(IOException ioe) {
+            System.err.println("IOException: " + ioe.getMessage());
+        }
+        fileString += "</table></div>\n";
         return fileString;
     }
     
